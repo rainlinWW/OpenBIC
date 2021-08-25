@@ -2,6 +2,7 @@
 #include <kernel.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "cmsis_os2.h"
 #include "hal_i2c.h"
 #include "pal.h"
@@ -684,8 +685,6 @@ void IPMB_SeqTimeout_handler(void *arug0, void *arug1, void *arug2)
 }
 
 static void init_ipmb_slave_dev(void) {
-  int status;
-
 #ifdef DEV_IPMB_0
   dev_ipmb[0] = device_get_binding("IPMB_0");
   if (i2c_slave_driver_register(dev_ipmb[0]))

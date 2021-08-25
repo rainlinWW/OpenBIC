@@ -58,8 +58,7 @@ void gpio_isr_handler(struct k_work *work) {
 }
 
 void irq_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
-  uint8_t group, gpio_num;
-  uint8_t pin;
+  uint8_t group;
 
   if( dev == dev_gpio[gpio_a_d] ) {
     group = gpio_a_d;

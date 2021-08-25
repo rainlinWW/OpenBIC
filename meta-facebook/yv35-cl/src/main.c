@@ -16,10 +16,6 @@
 
 void main(void)
 {
-  I2C_MSG *msg;
-  uint8_t ret, retry = 5;
-  uint8_t status;
-
 	printk("Hello yv35 cl\n");
 
   util_init_I2C();

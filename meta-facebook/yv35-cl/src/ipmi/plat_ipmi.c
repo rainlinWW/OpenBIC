@@ -1,6 +1,7 @@
 #include <zephyr.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "plat_i2c.h"
 #include "ipmi.h"
 
@@ -84,7 +85,7 @@ void pal_APP_MASTER_WRITE_READ(ipmi_msg *msg) {
 void pal_OEM_MSG_OUT(ipmi_msg *msg) {
   uint8_t  target_IF;
   ipmb_error status;
-  ipmi_msg *bridge_msg = (ipmi_msg*)k_malloc(sizeof(ipmi_msg));
+  ipmi_msg *bridge_msg = (ipmi_msg*)malloc(sizeof(ipmi_msg));
 
   memset(bridge_msg, 0, sizeof(ipmi_msg));
 
@@ -126,7 +127,7 @@ void pal_OEM_MSG_OUT(ipmi_msg *msg) {
       msg->completion_code = CC_BRIDGE_MSG_ERR;
     }
 
-    k_free(bridge_msg);
+    free(bridge_msg);
   }
 
   if (msg->completion_code != CC_SUCCESS) { // Return to source while data is invalid or sending req to Tx task fail
