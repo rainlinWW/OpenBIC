@@ -223,7 +223,7 @@ ipmi_error IPMI_handler(ipmi_msg_cfg *msg_cfg)
 	}
 
 	if (pal_is_not_return_cmd(msg_cfg->buffer.netfn, msg_cfg->buffer.cmd)) {
-		k_free(msg_cfg);
+		;
 	} else {
 		ipmb_error status;
 

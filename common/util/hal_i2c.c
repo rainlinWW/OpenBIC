@@ -9,18 +9,7 @@
 static const struct device *dev_i2c[MAX_I2C_BUS_NUM];
 
 
-struct k_mutex i2c_mutex[10];
-
-
-//static struct k_mutex *my_mutex[MAX_I2C_BUS_NUM];
-
-/*static osMutexId_t util_i2c_mutex[MAX_I2C_BUS_NUM]; // mutex for each I2C bus access protection
-const osMutexAttr_t util_i2c_Mutex_attr = {
-  "utilI2CQueueMutex",                   // human readable mutex name
-  NULL,                                  // attr_bits
-  NULL,                                  // memory for control block
-  0U,                                    // size for control block
-};*/
+struct k_mutex i2c_mutex[MAX_I2C_BUS_NUM];
 
 bool i2c_master_read(I2C_MSG *msg, uint8_t retry) {
   uint8_t i;
@@ -83,7 +72,7 @@ bool i2c_master_read(I2C_MSG *msg, uint8_t retry) {
 bool i2c_master_write(I2C_MSG *msg, uint8_t retry) {
   uint8_t i;
   uint8_t txbuf[I2C_BUFF_SIZE];
-  int ret, status;
+  int status;
 
   if (DEBUG_I2C) {
     printf("i2c_master_write: bus %d, addr %x, txlen %d, txbuf:",msg->bus, msg->slave_addr, msg->tx_len);
@@ -123,7 +112,6 @@ bool i2c_master_write(I2C_MSG *msg, uint8_t retry) {
 }
 
 void util_init_I2C(void) {
-  uint8_t i;
   int status;
 
 #ifdef DEV_I2C_0

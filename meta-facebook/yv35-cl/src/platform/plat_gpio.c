@@ -1,5 +1,6 @@
 #include <zephyr.h>
 #include <stdio.h>
+#include <string.h>
 #include "cmsis_os.h"
 #include "hal_gpio.h"
 #include "pal.h"

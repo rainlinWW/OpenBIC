@@ -10,7 +10,7 @@
 #define Reserve_BUS 0xff
 
 #define BMC_I2C_ADDRESS  0x10
-#define ME_I2C_ADDRESS   0x20
+#define ME_I2C_ADDRESS   0x16
 #define Self_I2C_ADDRESS 0x20
 #define BIC0_I2C_ADDRESS 0x2A
 #define BIC1_I2C_ADDRESS 0x2B
