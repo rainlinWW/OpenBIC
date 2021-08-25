@@ -39,6 +39,48 @@ void pal_APP_GET_DEVICE_ID(ipmi_msg *msg)
 	return;
 }
 
+void pal_APP_MASTER_WRITE_READ(ipmi_msg *msg) {
+  uint8_t retry = 3;
+  uint8_t bus_7bit;
+  I2C_MSG i2c_msg;
+
+  if (msg->data_len < 4) { // at least include bus, addr, rx_len, offset
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  bus_7bit = ( (msg->data[0]-1) >> 1); // should ignore bit0, all bus public
+  i2c_msg.bus = i2c_bus_to_index[bus_7bit];
+  i2c_msg.slave_addr = (msg->data[1] >> 1); // 8 bit address to 7 bit
+  i2c_msg.rx_len = msg->data[2];
+  i2c_msg.tx_len = msg->data_len - 3;
+
+  if (i2c_msg.tx_len == 0) {
+    msg->completion_code = CC_INVALID_DATA_FIELD;
+    return;
+  }
+
+  memcpy(&i2c_msg.data[0], &msg->data[3], i2c_msg.tx_len);
+  msg->data_len = i2c_msg.rx_len;
+
+  if (i2c_msg.rx_len == 0) {
+    if ( !i2c_master_write(&i2c_msg, retry) ) {
+      msg->completion_code = CC_SUCCESS;
+    } else {
+      msg->completion_code = CC_I2C_BUS_ERROR;
+    }
+  } else {
+    if ( !i2c_master_read(&i2c_msg, retry) ) {
+      memcpy(&msg->data[0], &i2c_msg.data, i2c_msg.rx_len);
+      msg->completion_code = CC_SUCCESS;
+    } else {
+      msg->completion_code = CC_I2C_BUS_ERROR;
+    }
+  }
+
+  return;
+}
+
 void pal_OEM_MSG_OUT(ipmi_msg *msg) {
   uint8_t  target_IF;
   ipmb_error status;
