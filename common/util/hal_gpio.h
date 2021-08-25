@@ -47,10 +47,10 @@ typedef struct _GPIO_CFG_ {
   uint8_t chip;
   uint8_t number;
   uint8_t is_init;
-  uint8_t direction;
+  uint16_t direction;
   uint8_t status;
   uint8_t property;
-  uint8_t int_type;
+  int int_type;
   uint8_t (*int_cb)(uint8_t);
 } GPIO_CFG;
 

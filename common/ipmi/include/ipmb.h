@@ -45,7 +45,7 @@
 
 #define DEBUG_IPMI 0
 
-#define MAX_DATA_QUENE 30
+#define MAX_DATA_QUENE 15
 #define MAX_IPMB_IDX 5
 #define IPMB_timeout_S 1
 #define SELF_IPMB_IF  0x00
@@ -64,6 +64,7 @@
 #define IPMB_RETRY_DELAY_ms 500
 #define IPMB_MQUEUE_POLL_DELAY_ms 10
 #define IPMB_SEQ_TIMEOUT_ms 1000
+#define IPMB_SEQ_TIMEOUT_STACK_SIZE 500
 
 #define Enable  1
 #define Disable 0
@@ -89,7 +90,7 @@ enum{
   Reserve_IF,
 };
 
-typedef struct _IPMB_config_ {
+typedef struct IPMB_config {
   uint8_t index;
   uint8_t Inf;
   uint8_t Inf_source;
@@ -135,13 +136,13 @@ typedef struct ipmi_msg {
                                          */
   uint32_t timestamp;                 /**< Tick count at the beginning of the process */
   uint8_t msg_chksum;                 /**< Message checksum */
-} ipmi_msg;
+} __packed __aligned(4) ipmi_msg;
 
 typedef struct ipmi_msg_cfg {
   ipmi_msg buffer;                    /**< IPMI Message */
   uint8_t retries;                    /**< Current retry counter */
   struct ipmi_msg_cfg *next;
-} ipmi_msg_cfg;
+} __packed __aligned(4) ipmi_msg_cfg;
 
 
 void ipmb_init ( void );

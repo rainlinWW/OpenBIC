@@ -1,6 +1,8 @@
 #ifndef PLAT_I2C_h
 #define PLAT_I2C_h
 
+#include "hal_i2c.h"
+
 // map i2c bus to peripherial bus
 // i2c peripheral 1 based, as used i2c index 0 in firmware.
 #define i2c_bus1  0
