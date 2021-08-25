@@ -249,7 +249,6 @@ ipmi_error IPMI_handler(ipmi_msg_cfg *msg_cfg)
 				printf("IPMI_handler send IPMB resp fail status: %x", status);
 			}
 		}
-		k_free(msg_cfg);
 	}
 
 	osMutexRelease(IPMI_mutex);
