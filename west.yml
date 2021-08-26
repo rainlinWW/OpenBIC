@@ -1,17 +1,17 @@
-  1 manifest:
-  2   remotes:
-  3     - name: aspeed
-  4       url-base: https://github.com/AspeedTech-BMC
-  5
-  6   # Please add items below based on alphabetical order.
-  7   # These dependencies may need updating if new features are added to the firmware.
-  8   projects:
-  9     - name: zephyr
- 10       remote: aspeed
- 11       path: zephyr
- 12       revision: 853c88e0779fb0deb1e7030b357f82a3b83f668a
- 13       import: true
- 14
- 15   self:
- 16     path: yv3.5_zephyr_bic
+manifest:
+  remotes:
+    - name: aspeed
+      url-base: https://github.com/AspeedTech-BMC
+
+  # Please add items below based on alphabetical order.
+  # These dependencies may need updating if new features are added to the firmware.
+  projects:
+    - name: zephyr
+      remote: aspeed
+      path: zephyr
+      revision: 853c88e0779fb0deb1e7030b357f82a3b83f668a
+      import: true
+
+  self:
+    path: yv3.5_zephyr_bic
 
