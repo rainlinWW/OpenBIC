@@ -6,6 +6,8 @@
 #include "sensor.h"
 #include "sensor_def.h"
 
+struct k_thread sensor_poll;
+K_KERNEL_STACK_MEMBER(sensor_poll_stack, sensor_poll_stack_size);
 
 uint8_t SnrNum_SnrCfg_map[SENSOR_NUM_MAX];
 uint8_t SnrNum_SDR_map[SENSOR_NUM_MAX];
@@ -132,11 +134,12 @@ uint8_t get_sensor_reading(uint8_t sensor_num, int *reading, uint8_t read_mode) 
   return SNR_UNSPECIFIED_ERROR; // should not reach here
 }
 
-void SNR_poll_handler(void* pvParameters) {
+void SNR_poll_handler(void *arug0, void *arug1, void *arug2) {
   uint8_t poll_num;
-  int reading;
-  osStatus_t os_status; 
-  osDelay(3000); // delay 3 second to wait for drivers ready before start sensor polling
+  int reading, SNR_POLL_INTERVEL_ms;
+  k_msleep(3000); // delay 3 second to wait for drivers ready before start sensor polling
+
+  pal_set_sensor_poll_interval(&SNR_POLL_INTERVEL_ms);
 
   while(1) {
     for (poll_num = 0; poll_num < SENSOR_NUM_MAX; poll_num++) {
@@ -145,25 +148,19 @@ void SNR_poll_handler(void* pvParameters) {
       }
       get_sensor_reading(poll_num, &reading, get_from_sensor);
 
-      os_status = osThreadYield();
-      if (os_status != osOK) {
-        printf("SNR_poll_handler yield failure\n");
-      }
+      k_yield();
     }
-    osDelay(SNR_POLL_INTERVEL_ms);
+    k_msleep(SNR_POLL_INTERVEL_ms);
   }
 }
 
 void sensor_poll_init() {
-  osThreadId_t SNR_poll_task;
-  osThreadAttr_t SNR_poll_Task_attr;
-
-  memset(&SNR_poll_Task_attr, 0, sizeof(SNR_poll_Task_attr));
-  SNR_poll_Task_attr.name = "SNR_poll_task";
-  SNR_poll_Task_attr.priority = osPriorityBelowNormal;
-  SNR_poll_Task_attr.stack_size = 0x1000;
-  SNR_poll_task = osThreadNew(SNR_poll_handler, NULL, &SNR_poll_Task_attr);
-
+  k_thread_create(&sensor_poll, sensor_poll_stack,
+                  K_THREAD_STACK_SIZEOF(sensor_poll_stack),
+                  SNR_poll_handler,
+                  NULL, NULL, NULL,
+                  osPriorityBelowNormal, 0, K_NO_WAIT);
+  k_thread_name_set(&sensor_poll, "sensor_poll");
   return;
 }
 

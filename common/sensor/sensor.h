@@ -3,6 +3,8 @@
 
 #include "sdr.h"
 
+#define sensor_poll_stack_size 1000
+
 #define get_from_sensor 0x00
 #define get_from_cache 0x01
 
@@ -11,8 +13,6 @@
 #define sensor_null 0xFF
 #define sensor_fail 0xFF
 #define SENSOR_NUM_MAX 0xFF
-
-#define SNR_POLL_INTERVEL_ms 10000
 
 #define DEBUG_SNR 0
 

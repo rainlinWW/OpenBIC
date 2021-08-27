@@ -1,6 +1,7 @@
 #include <zephyr.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "cmsis_os2.h"
 #include "hal_dev.h"
 #include "hal_i2c.h"
@@ -11,11 +12,10 @@ static const struct device *dev_i2c[MAX_I2C_BUS_NUM];
 
 struct k_mutex i2c_mutex[MAX_I2C_BUS_NUM];
 
-bool i2c_master_read(I2C_MSG *msg, uint8_t retry) {
+int i2c_master_read(I2C_MSG *msg, uint8_t retry) {
   uint8_t i;
-  uint8_t txbuf[I2C_BUFF_SIZE], rxbuf[I2C_BUFF_SIZE];
+  uint8_t *txbuf, *rxbuf;
   int ret, status;
-
   if (DEBUG_I2C) {
     printf("i2c_master_read: bus %d, addr %x, rxlen %d, txlen %d, txbuf:", msg->bus, msg->slave_addr, msg->rx_len, msg->tx_len);
     for (int i = 0; i < msg->tx_len; i++) {
@@ -26,13 +26,17 @@ bool i2c_master_read(I2C_MSG *msg, uint8_t retry) {
 
   if(msg->rx_len == 0) {
     printf("i2c_master_read with rx_len = 0\n");
-    return false;
+    return EMSGSIZE;
   }
+
 
   do { // break while getting mutex success but tranmission fail
     status = k_mutex_lock(&i2c_mutex[msg->bus], K_MSEC(1000));
     if (status == osOK) {
       for (i = 0; i < retry; i++) {
+        txbuf = (uint8_t*)malloc(I2C_BUFF_SIZE * sizeof(uint8_t));
+        rxbuf = (uint8_t*)malloc(I2C_BUFF_SIZE * sizeof(uint8_t));
+
         memcpy(txbuf, &msg->data[0], msg->tx_len);
 
         ret = i2c_write_read(dev_i2c[msg->bus], msg->slave_addr, txbuf, msg->tx_len, rxbuf, msg->rx_len);
@@ -47,6 +51,9 @@ bool i2c_master_read(I2C_MSG *msg, uint8_t retry) {
           printf("\n");
         }
 
+        free(txbuf);
+        free(rxbuf);
+
         status = k_mutex_unlock(&i2c_mutex[msg->bus]);
         if (status != osOK) {
           printf("I2C %d master read release mutex fail\n",msg->bus);
@@ -58,21 +65,21 @@ bool i2c_master_read(I2C_MSG *msg, uint8_t retry) {
       if (status != osOK) {
         printf("I2C %d master read release mutex fail\n",msg->bus);
       }
-      return false;
+      return EPIPE;
     } else {
       printf("I2C %d master read get mutex timeout\n",msg->bus);
-      return false;
+      return ENOLCK;
     }
   } while(0);
 
   
-  return false; // should not reach here
+  return ECANCELED; // should not reach here
 }
 
-bool i2c_master_write(I2C_MSG *msg, uint8_t retry) {
+int i2c_master_write(I2C_MSG *msg, uint8_t retry) {
   uint8_t i;
-  uint8_t txbuf[I2C_BUFF_SIZE];
-  int status;
+  uint8_t *txbuf;
+  int status, ret;
 
   if (DEBUG_I2C) {
     printf("i2c_master_write: bus %d, addr %x, txlen %d, txbuf:",msg->bus, msg->slave_addr, msg->tx_len);
@@ -85,14 +92,18 @@ bool i2c_master_write(I2C_MSG *msg, uint8_t retry) {
   status = k_mutex_lock(&i2c_mutex[msg->bus], K_MSEC(1000));
   if (status == osOK) {
     for (i = 0; i < retry; i++) {
+      txbuf = (uint8_t*)malloc(I2C_BUFF_SIZE * sizeof(uint8_t));
       memcpy(txbuf, &msg->data[0], msg->tx_len);
-      if ( i2c_write(dev_i2c[msg->bus], txbuf, msg->tx_len, msg->slave_addr) ) {
-        continue;        
+      ret = i2c_write(dev_i2c[msg->bus], txbuf, msg->tx_len, msg->slave_addr);
+      if ( ret ) {
+        free(txbuf);
+        continue;
       } else { // i2c write success
         status = k_mutex_unlock(&i2c_mutex[msg->bus]);
         if (status != osOK) {
           printf("I2C %d master write release mutex fail\n",msg->bus);
-        }
+        } 
+        free(txbuf);
         return true;
       }
     }
@@ -101,14 +112,14 @@ bool i2c_master_write(I2C_MSG *msg, uint8_t retry) {
     if (status != osOK) {
       printf("I2C %d master write release mutex fail\n",msg->bus);
     }
-    return false;
+    return EPIPE;
 
   } else {
     printf("I2C %d master write get mutex timeout\n",msg->bus);
-    return false;
+    return ENOLCK;
   }
 
-  return false;
+  return ECANCELED;
 }
 
 void util_init_I2C(void) {

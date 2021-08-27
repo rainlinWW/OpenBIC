@@ -13,6 +13,9 @@ void pal_I2C_init(void);
 void pal_BIC_init(void);
 bool pal_load_IPMB_config(void);
 
+// sensor
+void pal_set_sensor_poll_interval(int *interval_ms);
+
 // sensor accessible
 uint8_t pal_load_sdr_table(void);
 bool pal_load_snr_config(void);

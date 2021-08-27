@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "plat_i2c.h"
+#include "sensor.h"
 #include "ipmi.h"
 
 bool pal_is_to_ipmi_handler(uint8_t netfn, uint8_t cmd) {
@@ -79,6 +80,51 @@ void pal_APP_MASTER_WRITE_READ(ipmi_msg *msg) {
     }
   }
 
+  return;
+}
+
+void pal_SENSOR_GET_SENSOR_READING(ipmi_msg *msg) {
+  uint8_t status, snr_num;
+  int reading;
+
+  if (msg->data_len != 1) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  if (!enable_sensor_poll) {
+    printf("Reading sensor cache while sensor polling disable\n");
+    msg->completion_code = CC_CAN_NOT_RESPOND;
+    return;
+  }
+
+  snr_num = msg->data[0];
+  status = get_sensor_reading(snr_num, &reading, get_from_cache); // Fix to get_from_cache. As need real time reading, use OEM command to get_from_sensor.
+
+  switch (status) {
+    case SNR_READ_SUCCESS:
+      msg->data[0] = reading;
+      // SDR sensor initialization bit6 enable scan, bit5 enable event
+      // retunr data 1 bit 7 set to 0 to disable all event msg. bit 6 set to 0 disable sensor scan
+      msg->data[1] = ( (full_sensor_table[SnrNum_SDR_map[snr_num]].sensor_init & 0x60) << 1 );
+      msg->data[2] = 0xc0; // fix to threshold deassert status, BMC will compare with UCR/UNR itself
+      msg->data_len = 3;
+      msg->completion_code = CC_SUCCESS;
+      break;
+    case SNR_FAIL_TO_ACCESS:
+      msg->completion_code = CC_NODE_BUSY; // transection error
+      break;
+    case SNR_NOT_ACCESSIBLE:
+      msg->completion_code = CC_NOT_SUPP_IN_CURR_STATE; // DC off
+      break;
+    case SNR_NOT_FOUND:
+      msg->completion_code = CC_INVALID_DATA_FIELD; // request sensor number not found
+      break;
+    case SNR_UNSPECIFIED_ERROR:
+    default :
+      msg->completion_code = CC_UNSPECIFIED_ERROR; // unknown error
+      break;
+  }
   return;
 }
 
