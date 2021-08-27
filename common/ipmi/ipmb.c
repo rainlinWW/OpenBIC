@@ -8,6 +8,7 @@
 #include "pal.h"
 #include "timer.h"
 #include "ipmi.h"
+#include "kcs.h"
 
 static osMutexId_t mutex_id[MAX_IPMB_IDX]; // mutex for sequence link list insert/find
 static osMutexId_t mutex_send_req, mutex_send_res;
@@ -416,9 +417,10 @@ void IPMB_RXTask(void *pvParameters)
 
   				if (current_msg_rx.buffer.InF_source == SELF_IPMB_IF) {        // Send from other thread
   					;
-/*          } else if (current_msg_rx.buffer.InF_source == HOST_KCS_IFs) {
+          } else if (current_msg_rx.buffer.InF_source == HOST_KCS_IFs) {
             if ( DEBUG_KCS ) {
-                          printf("To KCS: netfn=0x%02x, cmd=0x%02x, cmlp=0x%02x, data[%d]:\n", current_msg_rx.buffer.netfn, current_msg_rx.buffer.cmd, current_msg_rx.buffer.completion_code, current_msg_rx.buffer.data_len);
+              printf("To KCS: netfn=0x%02x, cmd=0x%02x, cmlp=0x%02x, data[%d]:\n", 
+              current_msg_rx.buffer.netfn, current_msg_rx.buffer.cmd, current_msg_rx.buffer.completion_code, current_msg_rx.buffer.data_len);
               for (i = 2; i < current_msg_rx.buffer.data_len; ++i) {
                 if (i && (i % 16 == 0))
                   printf("\n");
@@ -427,18 +429,15 @@ void IPMB_RXTask(void *pvParameters)
               printf("\n");
             }
             kcs_buff = malloc(KCS_buff_size * sizeof(uint8_t));
-            kcs_buff[0] = current_msg_rx.buffer.netfn;
+            kcs_buff[0] = current_msg_rx.buffer.netfn << 2;
             kcs_buff[1] = current_msg_rx.buffer.cmd;
             kcs_buff[2] = current_msg_rx.buffer.completion_code;
             if(current_msg_rx.buffer.data_len > 0) {
               memcpy(&kcs_buff[3], &current_msg_rx.buffer.data[0], current_msg_rx.buffer.data_len);
             }
 
-            rc = aspeed_kcs_write(&kcs3, kcs_buff, current_msg_rx.buffer.data_len + 3); // data len + netfn + cmd + cc
-            if (rc < 0) {
-              printf("failed to write KCS data, rc=%d\n", rc);
-            }
-            free(kcs_buff); */                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       // lrain - should add back later
+            kcs_write(kcs_buff, current_msg_rx.buffer.data_len + 3); // data len + netfn + cmd + cc
+            free(kcs_buff);
   				} else {                                                        // Bridge response to other fru
   					ipmb_error status;
   					ipmi_msg find_msg;

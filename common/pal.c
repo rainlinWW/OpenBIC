@@ -176,6 +176,14 @@ __weak bool pal_load_IPMB_config(void)
 	return 0;
 }
 
+// sensor
+
+__weak void pal_set_sensor_poll_interval(int *interval_ms) 
+{
+  *interval_ms = 1000;
+  return;
+}
+
 // sensor accessible
 __weak uint8_t pal_load_sdr_table(void)
 {

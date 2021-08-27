@@ -13,6 +13,7 @@
 #include "hal_i2c.h"
 #include "hal_gpio.h"
 #include "ipmi.h"
+#include "kcs.h"
 
 void main(void)
 {
@@ -23,5 +24,5 @@ void main(void)
   gpio_init();
 	sensor_init();
 	ipmi_init();
-
+  kcs_init();
 }

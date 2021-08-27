@@ -74,8 +74,8 @@ typedef struct _I2C_MSG_ {
   struct k_mutex lock;
 } I2C_MSG;
 
-bool i2c_master_read(I2C_MSG *msg, uint8_t retry);
-bool i2c_master_write(I2C_MSG *msg, uint8_t retry);
+int i2c_master_read(I2C_MSG *msg, uint8_t retry);
+int i2c_master_write(I2C_MSG *msg, uint8_t retry);
 void util_init_I2C(void);
 
 #endif
