@@ -104,7 +104,7 @@ int i2c_master_write(I2C_MSG *msg, uint8_t retry) {
           printf("I2C %d master write release mutex fail\n",msg->bus);
         } 
         free(txbuf);
-        return true;
+        return ret;
       }
     }
     printf("I2C %d master write retry reach max\n",msg->bus);
