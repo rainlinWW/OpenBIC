@@ -236,7 +236,7 @@ void IPMB_TXTask(void *pvParameters)
   			continue;
   		}
 
-  		if (!status) {
+  		if (status) {
   			/* Message couldn't be transmitted right now, increase retry counter and try again later */
   			current_msg_tx.retries++;
   			osMessageQueuePut(ipmb_txqueue[ipmb_cfg.index], &current_msg_tx, 0, 0);
@@ -284,7 +284,7 @@ void IPMB_TXTask(void *pvParameters)
   			continue;
   		}
 
-  		if (!status) {
+  		if (status) {
   			current_msg_tx.retries++;
 
   			if (current_msg_tx.retries > IPMB_MAX_RETRIES) {
