@@ -13,14 +13,3 @@ target_sources(app PRIVATE ${common_sources})
 target_include_directories(app PRIVATE ${ZEPHYR_BASE}/include/portability)
 target_include_directories(app PRIVATE ${common_path} ${common_path}/ipmi/include ${common_path}/host ${common_path}/sensor ${common_path}/util)
 target_include_directories(app PRIVATE src/ipmi/include src/platform src/sensor)
-#target_link_libraries(yv35-cl PUBLIC ipmi)
-#target_include_directories(yv35-cl PUBLIC
-#                          "${ZEPHYR_BASE}/include/portability"
-#                          "${common_source}/ipmi"
-#                          )
-#include_directories(../../common)
-#target_include_directories(app PRIVATE ../../common)
-#target_include_directories(app PRIVATE ../../common/ipmi)
-#target_include_directories(app PRIVATE ${ZEPHYR_BASE}/include/portability)
-#target_sources(app PRIVATE src/main.c)
-#target_sources(app PRIVATE ../../common/ipmi/*)

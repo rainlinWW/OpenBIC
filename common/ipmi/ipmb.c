@@ -11,7 +11,7 @@
 #include "kcs.h"
 
 static osMutexId_t mutex_id[MAX_IPMB_IDX]; // mutex for sequence link list insert/find
-static osMutexId_t mutex_send_req, mutex_send_res;
+static osMutexId_t mutex_send_req, mutex_send_res, mutex_read;
 static const struct device *dev_ipmb[MAX_I2C_BUS_NUM];
 
 const osMutexAttr_t IPMB_SeqQ_Mutex_attr = {
@@ -35,7 +35,15 @@ const osMutexAttr_t IPMB_REQ_Mutex_attr = {
   0U,                     // size for control block
 };
 
+const osMutexAttr_t IPMB_Read_Mutex_attr = {
+  "IPMBReadQueueMutex",                   // human readable mutex name
+  osMutexPrioInherit,    // attr_bits, osMutexRobust: unlock mutex while thread terminated, osMutexPrioInherit: adjuct thread priority to avoid dead lock
+  NULL,                                  // memory for control block
+  0U,                                    // size for control block
+};
+
 osMessageQueueId_t ipmb_txqueue[MAX_IPMB_IDX]; // Message queue for receiving IPMB message in Tx thread and write to I2C or other interfaces
+osMessageQueueId_t ipmb_rxqueue[MAX_IPMB_IDX];
 
 extern osMessageQueueId_t IPMI_msg_queue;
 
@@ -340,25 +348,16 @@ void IPMB_RXTask(void *pvParameters)
 
   while (1) {
   	k_msleep(IPMB_MQUEUE_POLL_DELAY_ms);
-
   	rx_len = 0;
   	if (ipmb_cfg.Inf == I2C_IF) {
       ret = ipmb_slave_read(dev_ipmb[ipmb_cfg.bus], &msg, &rx_len);
       if (!ret) {
+        memcpy(ipmb_buffer_rx, (uint8_t *)msg, rx_len);
+        ipmb_buffer_rx[0] = ipmb_buffer_rx[0] >> 1;
         ipmb_slave_remove(dev_ipmb[ipmb_cfg.bus]);
       } else {
         continue;
       }
-      memcpy(ipmb_buffer_rx, (uint8_t *)msg, rx_len);
-      ipmb_buffer_rx[0] = ipmb_buffer_rx[0] >> 1;
-/*  		ipmb_buffer_rx[1] = 0x18;
-  		ipmb_buffer_rx[2] = 0xa8;
-  		ipmb_buffer_rx[3] = 0x40;
-  		ipmb_buffer_rx[4] = 0xd4;
-  		ipmb_buffer_rx[5] = 0x01;
-  		ipmb_buffer_rx[6] = 0xeb;
-  		rx_len = 6;
-  		i = 1;*/
   	} else if (ipmb_cfg.Inf == I3C_IF) {
   		;
   	} else {
@@ -415,8 +414,10 @@ void IPMB_RXTask(void *pvParameters)
   					printf("\n");
   				}
 
-  				if (current_msg_rx.buffer.InF_source == SELF_IPMB_IF) {        // Send from other thread
-  					;
+          if (current_msg_rx.buffer.InF_source == SELF_IPMB_IF) {        // Send from other thread
+            struct ipmi_msg current_msg;
+            current_msg = (struct ipmi_msg)current_msg_rx.buffer;
+            osMessageQueuePut(ipmb_rxqueue[ipmb_cfg.index], &current_msg, 0, osWaitForever);
           } else if (current_msg_rx.buffer.InF_source == HOST_KCS_IFs) {
             if ( DEBUG_KCS ) {
               printf("To KCS: netfn=0x%02x, cmd=0x%02x, cmlp=0x%02x, data[%d]:\n", 
@@ -561,6 +562,29 @@ ipmb_error ipmb_send_response(ipmi_msg *resp, uint8_t index)
   	return ipmb_error_failure;
   }
   osMutexRelease(mutex_send_res);
+  return ipmi_error_success;
+}
+
+ipmb_error ipmb_read(ipmi_msg *msg, uint8_t index) {
+  ipmb_error status;
+  // Set mutex timeout 10ms more than messageQueue timeout, prevent mutex timeout before messageQueue
+  osMutexAcquire(mutex_read, IPMB_SEQ_TIMEOUT_ms + 10);
+  // Reset a Message Queue to initial empty state
+  osMessageQueueReset(ipmb_rxqueue[index]);
+
+  status = ipmb_send_request(msg, IPMB_inf_index_map[msg->InF_target]);
+  if (status != ipmb_error_success) {
+    printf("ipmb send request fail status: %x", status);
+    osMutexRelease(mutex_read);
+    return ipmb_error_failure;
+  }
+
+  if (osMessageQueueGet(ipmb_rxqueue[index], msg, 0, util_get_ms_tick(IPMB_SEQ_TIMEOUT_ms)) != osOK) {
+    osMutexRelease(mutex_read);
+    return ipmb_error_get_messageQueue;
+  }
+
+  osMutexRelease(mutex_read);
   return ipmi_error_success;
 }
 
@@ -756,6 +780,7 @@ void ipmb_util_init(uint8_t index)
   	printf("IPMB mutex %d init fail\n", index);
   }
 
+  ipmb_rxqueue[index] = osMessageQueueNew(IPMB_RXQUEUE_LEN, sizeof(struct ipmi_msg), NULL);
   ipmb_txqueue[index] = osMessageQueueNew(IPMB_TXQUEUE_LEN, sizeof(struct ipmi_msg_cfg), NULL);
 
   IPMB_TxTask_attr.name = IPMB_config_table[index].Tx_attr_name;
@@ -801,6 +826,7 @@ void ipmb_init(void)
 
   mutex_send_req = osMutexNew(&IPMB_REQ_Mutex_attr);
   mutex_send_res = osMutexNew(&IPMB_RES_Mutex_attr);
+  mutex_read = osMutexNew(&IPMB_Read_Mutex_attr);
 
   for (index = 0; index < MAX_IPMB_IDX; index++) {
   	if (IPMB_config_table[index].EnStatus) {

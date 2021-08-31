@@ -55,6 +55,7 @@
 #define IPMI_MSG_MAX_LENGTH (IPMI_DATA_MAX_LENGTH + IPMB_RESP_HEADER_LENGTH)
 #define IPMB_MAX_RETRIES 5
 #define IPMB_TXQUEUE_LEN        10
+#define IPMB_RXQUEUE_LEN        1
 #define IPMI_HEADER_CHECKSUM_POSITION 2 
 #define IPMB_NETFN_MASK         0xFC
 #define IPMB_DEST_LUN_MASK      0x03
@@ -112,7 +113,8 @@ typedef enum ipmb_error {
   ipmb_error_invalid_req,             /**< A invalid request was received */
   ipmb_error_hdr_chksum,              /**< Invalid header checksum from incoming message */
   ipmb_error_msg_chksum,              /**< Invalid message checksum from incoming message */
-  ipmb_error_queue_creation           /**< Client queue couldn't be created. Invalid pointer to handler was given */
+  ipmb_error_queue_creation,          /**< Client queue couldn't be created. Invalid pointer to handler was given */
+  ipmb_error_get_messageQueue,        /**< Failure on getting queue message */
 } ipmb_error;
 
 typedef struct ipmi_msg {
@@ -148,5 +150,6 @@ typedef struct ipmi_msg_cfg {
 void ipmb_init ( void );
 ipmb_error ipmb_send_request ( ipmi_msg * req, uint8_t bus );
 ipmb_error ipmb_send_response ( ipmi_msg * resp, uint8_t bus );
+ipmb_error ipmb_read ( ipmi_msg * msg, uint8_t bus );
 
 #endif

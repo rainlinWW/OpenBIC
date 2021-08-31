@@ -19,6 +19,7 @@ void main(void)
 {
 	printk("Hello yv35 cl\n");
 
+  util_init_timer();
   util_init_I2C();
 
   gpio_init();
