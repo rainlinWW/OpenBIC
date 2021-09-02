@@ -298,3 +298,50 @@ void pal_OEM_GET_GPIO(ipmi_msg *msg) {
   msg->completion_code = CC_SUCCESS;
   return;
 }
+
+void pal_OEM_GET_SET_GPIO(ipmi_msg *msg) {
+  uint8_t value;
+  uint8_t completion_code = CC_INVALID_LENGTH;
+  uint8_t gpio_num = gpio_ind_to_num_table[msg->data[1]];
+
+  do {
+    if(msg->data[0] == 0) {    // Get GPIO output status
+      if(msg->data_len != 2) {
+        break;
+      }
+      msg->data[0] = gpio_num;
+      msg->data[1] = gpio_get(gpio_num);
+      completion_code = CC_SUCCESS;
+
+    } else if(msg->data[0] == 1) {    // Set GPIO output status
+      if(msg->data_len != 3) {
+        break;
+      }
+      msg->data[0] = gpio_num;
+      gpio_conf(gpio_num, GPIO_OUTPUT);
+      gpio_set(gpio_num, msg->data[2]);
+      msg->data[1] = gpio_get(gpio_num);
+      completion_code = CC_SUCCESS;
+
+    } else if (msg->data[0] == 2) {    // Get GPIO direction status
+      if(msg->data_len != 2) {
+        break;
+      }
+      msg->data[0] = gpio_num;
+      completion_code = CC_NOT_SUPP_IN_CURR_STATE;
+
+    } else if (msg->data[0] == 3) {    // Set GPIO direction status
+      if(msg->data_len != 3) {
+        break;
+      }
+      gpio_conf(gpio_num, msg->data[2]);
+      msg->data[0] = gpio_num;
+      msg->data[1] = msg->data[2]; 
+      completion_code = CC_SUCCESS;
+    }
+  } while(0);
+
+  msg->data_len = 2;  // Return GPIO number, status
+  msg->completion_code = completion_code;
+  return;
+}
