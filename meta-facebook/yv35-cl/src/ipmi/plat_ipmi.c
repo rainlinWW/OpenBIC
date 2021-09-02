@@ -6,6 +6,7 @@
 #include "sensor.h"
 #include "ipmi.h"
 #include "plat_ipmi.h"
+#include "hal_gpio.h"
 
 bool add_sel_evt_record(addsel_msg_t *sel_msg) {
   ipmb_error status;
@@ -239,5 +240,24 @@ void pal_OEM_MSG_OUT(ipmi_msg *msg) {
     }
   }
 
+  return;
+}
+
+void pal_OEM_GET_GPIO(ipmi_msg *msg) {
+  if (msg->data_len != 0) { // only input enable status
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+  
+  uint8_t eight_bit_value, gpio_num, gpio_value, gpio_cnt, data_len;
+  gpio_cnt = gpio_ind_to_num_table_cnt + (8 - (gpio_ind_to_num_table_cnt % 8)); // Bump up the gpio_ind_to_num_table_cnt to multiple of 8.
+  data_len = gpio_cnt / 8;
+  msg->data_len = data_len;
+  for(uint8_t i = 0; i < gpio_cnt; i++) {
+    gpio_value = (i >= gpio_ind_to_num_table_cnt) ? 0 : gpio_get(gpio_ind_to_num_table[i]);
+    eight_bit_value = (eight_bit_value << 1) | gpio_value;
+    msg->data[i / 8] = eight_bit_value;
+  }
+  msg->completion_code = CC_SUCCESS;
   return;
 }
