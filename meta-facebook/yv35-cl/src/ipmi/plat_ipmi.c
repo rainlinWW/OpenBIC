@@ -7,6 +7,7 @@
 #include "ipmi.h"
 #include "plat_ipmi.h"
 #include "hal_gpio.h"
+#include "ipmi_def.h"
 
 bool add_sel_evt_record(addsel_msg_t *sel_msg) {
   ipmb_error status;
@@ -93,6 +94,42 @@ void pal_APP_GET_DEVICE_ID(ipmi_msg *msg)
 	msg->completion_code = CC_SUCCESS;
 
 	return;
+}
+
+void pal_APP_GET_SELFTEST_RESULTS(ipmi_msg *msg) {
+  if (msg->data_len != 0) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  uint8_t test_result;
+  // CannotAccessSel
+  test_result = (test_result | GET_TEST_RESULT) << 1;
+  // CannotAccessSdrr
+  test_result = (test_result | is_SDR_not_init) << 1;
+  // CannotAccessFru
+  // Get common header
+  // Victor TODO after hal_eeprom finished.
+  test_result = (test_result | 0) << 1;
+  // IpmbLinesDead
+  test_result = (test_result | GET_TEST_RESULT) << 1;
+  // SdrrEmpty
+  test_result = (test_result | is_SDR_not_init) << 1;
+  // InternalCorrupt
+  // Victor TODO after hal_eeprom finished.
+  test_result = (test_result | 0) << 1;
+
+  // UpdateFWCorrupt
+  test_result = (test_result | GET_TEST_RESULT) << 1;
+  // OpFWCorrupt
+  test_result = test_result | GET_TEST_RESULT;
+
+  msg->data[0] = test_result == 0x00 ? 0x55 : 0x57;
+  msg->data[1] = test_result == 0x00 ? 0x00 : test_result;
+  msg->data_len = 2;
+  msg->completion_code = CC_SUCCESS;
+
+  return;
 }
 
 void pal_APP_MASTER_WRITE_READ(ipmi_msg *msg) {
