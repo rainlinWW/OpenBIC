@@ -191,6 +191,56 @@ void pal_STORAGE_RSV_SDR(ipmi_msg *msg) {
   return;
 }
 
+void pal_STORAGE_GET_SDR(ipmi_msg *msg) {
+  uint16_t next_record_ID;
+  uint16_t rsv_ID,record_ID;
+  uint8_t offset,req_len;
+  uint8_t *table_ptr;
+
+  rsv_ID = (msg->data[1] << 8) | msg->data[0];
+  record_ID = (msg->data[3] << 8) | msg->data[2];
+  offset = msg->data[4];
+  req_len = msg->data[5];
+   
+ 
+  if (msg->data_len != 6) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  if ( !SDR_RSV_ID_check(rsv_ID) ) {
+    msg->completion_code = CC_INVALID_RESERVATION;
+    return;
+  }
+
+  if ( !SDR_check_record_ID(record_ID) ) {
+    msg->completion_code = CC_INVALID_DATA_FIELD;
+    return;
+  }
+
+  if ( (req_len+2) > IPMI_DATA_MAX_LENGTH ) { // request length + next record ID should not over IPMB data limit
+    msg->completion_code = CC_LENGTH_EXCEEDED;
+    return;
+  }
+
+  if ( (offset+req_len) > IPMI_SDR_HEADER_LEN + full_sensor_table[record_ID].record_len ) {
+    msg->completion_code = CC_PARAM_OUT_OF_RANGE;
+    return;
+  }
+  
+  next_record_ID = SDR_get_record_ID(record_ID);
+  msg->data[0] = next_record_ID & 0xFF;
+  msg->data[1] = (next_record_ID >> 8) & 0xFF;
+
+  table_ptr = (uint8_t*)&full_sensor_table[record_ID];
+  memcpy(&msg->data[2], (table_ptr+offset), req_len);
+
+  msg->data_len = req_len + 2; // return next record ID + sdr data
+  msg->completion_code = CC_SUCCESS;
+
+  return;  
+}
+
 void pal_SENSOR_GET_SENSOR_READING(ipmi_msg *msg) {
   uint8_t status, snr_num;
   int reading;
