@@ -174,6 +174,23 @@ void pal_APP_MASTER_WRITE_READ(ipmi_msg *msg) {
   return;
 }
 
+void pal_STORAGE_RSV_SDR(ipmi_msg *msg) {
+  uint16_t RSV_ID;
+
+  if (msg->data_len != 0) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  RSV_ID = SDR_get_RSV_ID();
+  msg->data[0] = RSV_ID & 0xFF;
+  msg->data[1] = (RSV_ID >> 8) & 0xFF;
+  msg->data_len = 2;
+  msg->completion_code = CC_SUCCESS;  
+
+  return;
+}
+
 void pal_SENSOR_GET_SENSOR_READING(ipmi_msg *msg) {
   uint8_t status, snr_num;
   int reading;
