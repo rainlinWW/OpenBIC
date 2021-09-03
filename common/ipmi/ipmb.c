@@ -595,10 +595,9 @@ ipmb_error ipmb_notify_client(ipmi_msg_cfg *msg_cfg)
 
   /* Sends only the ipmi msg, not the control struct */
   if (!IS_RESPONSE(msg_cfg->buffer)) {
-  	if ((status = (IPMI_handler(msg_cfg))) != ipmi_error_success) {
-  		/* This shouldn't happen, but if it does, clear the message buffer, since the IPMB_TX task gives us its ownership */
-  		printf("IPMI_handler fail with status: %x\n", status);
-  		return ipmb_error_timeout;
+    while (k_msgq_put(&ipmi_msgq, msg_cfg, K_NO_WAIT) != 0) {
+      k_msgq_purge(&ipmi_msgq);
+  		printf("Retrying put ipmi msgq\n");
   	}
   }
   /* The message has already been copied to the responsible task, free it so we don't run out of resources */

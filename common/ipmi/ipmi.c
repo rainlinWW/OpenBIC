@@ -6,13 +6,11 @@
 #include <string.h>
 #define IPMI_QUEUE_SIZE 5
 
-osMutexId_t IPMI_mutex;
-const osMutexAttr_t IPMI_Mutex_attr = {
-	"IPMIQueueMutex",                               // human readable mutex name
-	osMutexRecursive | osMutexPrioInherit,          // attr_bits
-	NULL,                                           // memory for control block
-	0U,                                             // size for control block
-};
+struct k_thread IPMI_thread;
+K_KERNEL_STACK_MEMBER(IPMI_thread_stack, IPMI_THREAD_STACK_SIZE);
+
+char __aligned(4) ipmi_msgq_buffer[ipmi_buf_len * sizeof(struct ipmi_msg_cfg)];
+struct k_msgq ipmi_msgq;
 
 __weak bool pal_is_not_return_cmd(uint8_t netfn, uint8_t cmd)
 {
@@ -159,111 +157,118 @@ void IPMI_OEM_1S_handler(ipmi_msg *msg)
 	return;
 }
 
-ipmi_error IPMI_handler(ipmi_msg_cfg *msg_cfg)
+ipmi_error IPMI_handler(void *arug0, void *arug1, void *arug2)
 {
 	uint8_t i;
+  ipmi_msg_cfg msg_cfg;
 
-	osMutexAcquire(IPMI_mutex, osWaitForever);
+  while(1) {
 
-	if (DEBUG_IPMI) {
-		printf("IPMI_handler[%d]: netfn: %x\n", msg_cfg->buffer.data_len, msg_cfg->buffer.netfn);
-		for (i = 0; i < msg_cfg->buffer.data_len; i++) {
-			printf(" 0x%2x", msg_cfg->buffer.data[i]);
-		}
-		printf("\n");
-	}
+    k_msgq_get(&ipmi_msgq, &msg_cfg, K_FOREVER);
 
-	msg_cfg->buffer.completion_code = CC_INVALID_CMD;
-	switch (msg_cfg->buffer.netfn) {
-	case NETFN_CHASSIS_REQ:
-		IPMI_CHASSIS_handler(&msg_cfg->buffer);
-		break;
-	case NETFN_BRIDGE_REQ:
-		// IPMI_BRIDGE_handler();
-		break;
-	case NETFN_SENSOR_REQ:
-		IPMI_SENSOR_handler(&msg_cfg->buffer);
-		break;
-	case NETFN_APP_REQ:
-		IPMI_APP_handler(&msg_cfg->buffer);
-		break;
-	case NETFN_FIRMWARE_REQ:
-		break;
-	case NETFN_STORAGE_REQ:
-		IPMI_Storage_handler(&msg_cfg->buffer);
-		break;
-	case NETFN_TRANSPORT_REQ:
-		break;
-	case NETFN_DCMI_REQ:
-		break;
-	case NETFN_NM_REQ:
-		break;
-	case NETFN_OEM_REQ:
-		IPMI_OEM_handler(&msg_cfg->buffer);
-		break;
-	case NETFN_OEM_1S_REQ:
-		if ((msg_cfg->buffer.data[0] | (msg_cfg->buffer.data[1] << 8) | (msg_cfg->buffer.data[2] << 16)) == WW_IANA_ID) {
-			memcpy(&msg_cfg->buffer.data[0], &msg_cfg->buffer.data[3], msg_cfg->buffer.data_len);
-			msg_cfg->buffer.data_len -= 3;
-			IPMI_OEM_1S_handler(&msg_cfg->buffer);
-			break;
-		} else if (pal_is_not_return_cmd(msg_cfg->buffer.netfn, msg_cfg->buffer.cmd)) {
-			msg_cfg->buffer.completion_code = CC_INVALID_IANA;
-			IPMI_OEM_1S_handler(&msg_cfg->buffer); // Due to command not returning, enter command handler and return with other invalid CC
-			break;
-		} else {
-			msg_cfg->buffer.completion_code = CC_INVALID_IANA;
-			msg_cfg->buffer.data_len = 0;
-			break;
-		}
-	default: // invalid net function
-		printf("invalid msg netfn: %x, cmd: %x\n", msg_cfg->buffer.netfn, msg_cfg->buffer.cmd);
-		msg_cfg->buffer.data_len = 0;
-		break;
-	}
+    if (DEBUG_IPMI) {
+      printf("IPMI_handler[%d]: netfn: %x\n", msg_cfg.buffer.data_len, msg_cfg.buffer.netfn);
+      for (i = 0; i < msg_cfg.buffer.data_len; i++) {
+        printf(" 0x%2x", msg_cfg.buffer.data[i]);
+      }
+      printf("\n");
+    }
 
-	if (pal_is_not_return_cmd(msg_cfg->buffer.netfn, msg_cfg->buffer.cmd)) {
-		;
-	} else {
-		ipmb_error status;
+    msg_cfg.buffer.completion_code = CC_INVALID_CMD;
+    switch (msg_cfg.buffer.netfn) {
+      case NETFN_CHASSIS_REQ:
+        IPMI_CHASSIS_handler(&msg_cfg.buffer);
+        break;
+      case NETFN_BRIDGE_REQ:
+        // IPMI_BRIDGE_handler();
+        break;
+      case NETFN_SENSOR_REQ:
+        IPMI_SENSOR_handler(&msg_cfg.buffer);
+        break;
+      case NETFN_APP_REQ:
+        IPMI_APP_handler(&msg_cfg.buffer);
+        break;
+      case NETFN_FIRMWARE_REQ:
+        break;
+      case NETFN_STORAGE_REQ:
+        IPMI_Storage_handler(&msg_cfg.buffer);
+        break;
+      case NETFN_TRANSPORT_REQ:
+        break;
+      case NETFN_DCMI_REQ:
+        break;
+      case NETFN_NM_REQ:
+        break;
+      case NETFN_OEM_REQ:
+        IPMI_OEM_handler(&msg_cfg.buffer);
+        break;
+      case NETFN_OEM_1S_REQ:
+        if ((msg_cfg.buffer.data[0] | (msg_cfg.buffer.data[1] << 8) | (msg_cfg.buffer.data[2] << 16)) == WW_IANA_ID) {
+          memcpy(&msg_cfg.buffer.data[0], &msg_cfg.buffer.data[3], msg_cfg.buffer.data_len);
+          msg_cfg.buffer.data_len -= 3;
+          IPMI_OEM_1S_handler(&msg_cfg.buffer);
+          break;
+        } else if (pal_is_not_return_cmd(msg_cfg.buffer.netfn, msg_cfg.buffer.cmd)) {
+          msg_cfg.buffer.completion_code = CC_INVALID_IANA;
+          IPMI_OEM_1S_handler(&msg_cfg.buffer); // Due to command not returning, enter command handler and return with other invalid CC
+          break;
+        } else {
+          msg_cfg.buffer.completion_code = CC_INVALID_IANA;
+          msg_cfg.buffer.data_len = 0;
+          break;
+        }
+      default: // invalid net function
+        printf("invalid msg netfn: %x, cmd: %x\n", msg_cfg.buffer.netfn, msg_cfg.buffer.cmd);
+        msg_cfg.buffer.data_len = 0;
+        break;
+    }
 
-		if (msg_cfg->buffer.completion_code != CC_SUCCESS) {
-			msg_cfg->buffer.data_len = 0;
-		} else if (msg_cfg->buffer.netfn == NETFN_OEM_1S_REQ) {
-			uint8_t copy_data[msg_cfg->buffer.data_len];
-			memcpy(&copy_data[0], &msg_cfg->buffer.data[0], msg_cfg->buffer.data_len);
-			memcpy(&msg_cfg->buffer.data[3], &copy_data[0], msg_cfg->buffer.data_len);
-			msg_cfg->buffer.data_len += 3;
-			msg_cfg->buffer.data[0] = WW_IANA_ID & 0xFF;
-			msg_cfg->buffer.data[1] = (WW_IANA_ID >> 8) & 0xFF;
-			msg_cfg->buffer.data[2] = (WW_IANA_ID >> 16) & 0xFF;
-		}
-
-		if (msg_cfg->buffer.InF_source == BMC_USB_IFs) {
-			;
-		} else if (msg_cfg->buffer.InF_source == HOST_KCS_IFs) {
+    if (pal_is_not_return_cmd(msg_cfg.buffer.netfn, msg_cfg.buffer.cmd)) {
       ;
     } else {
-			status = ipmb_send_response(&msg_cfg->buffer, IPMB_inf_index_map[msg_cfg->buffer.InF_source]);
-			if (status != ipmb_error_success) {
-				printf("IPMI_handler send IPMB resp fail status: %x", status);
-			}
-		}
-	}
+      ipmb_error status;
 
-	osMutexRelease(IPMI_mutex);
-	return ipmi_error_success;
+      if (msg_cfg.buffer.completion_code != CC_SUCCESS) {
+        msg_cfg.buffer.data_len = 0;
+      } else if (msg_cfg.buffer.netfn == NETFN_OEM_1S_REQ) {
+        uint8_t copy_data[msg_cfg.buffer.data_len];
+        memcpy(&copy_data[0], &msg_cfg.buffer.data[0], msg_cfg.buffer.data_len);
+        memcpy(&msg_cfg.buffer.data[3], &copy_data[0], msg_cfg.buffer.data_len);
+        msg_cfg.buffer.data_len += 3;
+        msg_cfg.buffer.data[0] = WW_IANA_ID & 0xFF;
+        msg_cfg.buffer.data[1] = (WW_IANA_ID >> 8) & 0xFF;
+        msg_cfg.buffer.data[2] = (WW_IANA_ID >> 16) & 0xFF;
+      }
+
+      if (msg_cfg.buffer.InF_source == BMC_USB_IFs) {
+        ;
+      } else if (msg_cfg.buffer.InF_source == HOST_KCS_IFs) {
+        ;
+      } else {
+        status = ipmb_send_response(&msg_cfg.buffer, IPMB_inf_index_map[msg_cfg.buffer.InF_source]);
+        if (status != ipmb_error_success) {
+          printf("IPMI_handler send IPMB resp fail status: %x", status);
+        }
+      }
+    }
+
+  }
 
 }
 
 void ipmi_init(void)
 {
-	printf("ipmi_init\n"); // rain
-	IPMI_mutex = osMutexNew(&IPMI_Mutex_attr);
-	if (IPMI_mutex == NULL) {
-		printf("IPMI_mutex create fail\n");
-	}
+  printf("ipmi_init\n"); // rain
 
-	ipmb_init();
+  k_msgq_init(&ipmi_msgq, ipmi_msgq_buffer, sizeof(struct ipmi_msg_cfg), ipmi_buf_len);
+
+  k_thread_create(&IPMI_thread, IPMI_thread_stack,
+                  K_THREAD_STACK_SIZEOF(IPMI_thread_stack),
+                  IPMI_handler,
+                  NULL, NULL, NULL,
+                  osPriorityBelowNormal, 0, K_NO_WAIT);
+  k_thread_name_set(&IPMI_thread, "IPMI_thread");
+
+  ipmb_init();
 }
 
