@@ -90,8 +90,9 @@ void kcs_read(void* arvg0, void* arvg1, void* arvg2)
       }
 
       //if ( ( status = ( IPMI_handler(&current_msg) ) ) != ipmi_error_success ) {
-      if (  IPMI_handler(&current_msg) != ipmi_error_success ) {
-        printk("kcs netfn %x cmd %x fail with status: %x\n", current_msg.buffer.netfn, current_msg.buffer.cmd, status);
+      while (k_msgq_put(&ipmi_msgq, &current_msg, K_NO_WAIT) != 0) {
+        k_msgq_purge(&ipmi_msgq);
+        printf("KCS retrying put ipmi msgq\n");
       }
 
       res = (struct kcs_response *)ibuf;

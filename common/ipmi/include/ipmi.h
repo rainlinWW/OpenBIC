@@ -4,9 +4,12 @@
 #include "ipmb.h"
 
 #define WW_IANA_ID 0x009c9c
+#define IPMI_THREAD_STACK_SIZE 4000
+#define ipmi_buf_len 10
 
 extern uint8_t IPMB_inf_index_map[];
 extern uint8_t isPwOn;
+extern struct k_msgq ipmi_msgq;
 
 typedef enum ipmi_error {
   ipmi_error_success = 0,             /**< Generic no-error flag    */
@@ -15,7 +18,7 @@ typedef enum ipmi_error {
 
 
 void ipmi_init(void);
-ipmi_error IPMI_handler (ipmi_msg_cfg *msg_cfg);
+ipmi_error IPMI_handler (void *arug0, void *arug1, void *arug2);
 
 // IPMI CHASSIS
 void pal_CHASSIS_GET_CHASSIS_STATUS(ipmi_msg *msg);
