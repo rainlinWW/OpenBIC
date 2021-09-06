@@ -15,8 +15,8 @@ struct k_work gpio_work[total_gpio_num];
 
 struct gpio_isr_info_t {
   struct k_work gpio_isr_work;
-  uint8_t group;
-  uint8_t bit_pin;
+  uint32_t group;
+  uint32_t bit_pin;
 } gpio_isr_info;
 
 uint8_t gpio_ind_to_num_table[200];
