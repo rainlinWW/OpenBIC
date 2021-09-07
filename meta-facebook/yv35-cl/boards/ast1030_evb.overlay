@@ -294,3 +294,7 @@
   addr = <0xca2>;
 };
 
+&uart5 {
+  current-speed = <57600>;
+};
+
