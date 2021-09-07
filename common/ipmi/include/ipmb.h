@@ -45,6 +45,7 @@
 
 #define DEBUG_IPMI 0
 
+#define SEQ_NUM 64
 #define MAX_DATA_QUENE 15
 #define MAX_IPMB_IDX 5
 #define IPMB_timeout_S 1

@@ -57,6 +57,7 @@ static uint32_t tick_fix;
 static uint32_t sys_tick_freq;
 
 static uint8_t current_seq[MAX_IPMB_IDX]; // Sequence in BIC for sending sequence to other IPMB devices
+static bool seq_table[MAX_IPMB_IDX][SEQ_NUM]; // Sequence table in BIC for register record
 
 ipmb_error ipmb_assert_chksum(uint8_t *buffer, uint8_t buffer_len);
 ipmb_error ipmb_encode(uint8_t *buffer, ipmi_msg *msg);
@@ -97,6 +98,34 @@ uint8_t calculate_chksum(uint8_t *buffer, uint8_t range)
   return chksum;
 }
 
+void unregister_seq(uint8_t index, uint8_t seq_num) {
+  seq_table[index][current_seq[index]] = 0;
+}
+
+void register_seq(uint8_t index, uint8_t seq_num) {
+  seq_table[index][current_seq[index]] = 1;
+}
+
+uint8_t get_free_seq(uint8_t index) {
+  uint8_t count = 0;
+
+  do {
+    current_seq[index] = (current_seq[index] + 1) & 0x3f;
+    if ( !seq_table[index][current_seq[index]] ) {
+      break;
+    }
+
+    count++;  // break in case no free seq found
+    if( count == SEQ_NUM ) {
+      printk("IPMB[%x] free seq not found!!\n", index);
+      break;
+    }
+  } while(1);
+
+  return current_seq[index];
+}
+
+
 // Record IPMB request for checking response sequence and finding source sequence for bridge command
 void insert_node(ipmi_msg_cfg *pnode, ipmi_msg *msg, uint8_t index)
 {
@@ -125,6 +154,7 @@ void insert_node(ipmi_msg_cfg *pnode, ipmi_msg *msg, uint8_t index)
 
   msg->timestamp = osKernelGetSysTimerCount();
   memcpy(&pnode->buffer, msg, sizeof(ipmi_msg));
+  register_seq(index, pnode->buffer.seq_target);
 
   pnode->next = ptr_start;
   seq_current_count[index]++;
@@ -165,8 +195,9 @@ bool find_node(ipmi_msg_cfg *pnode, ipmi_msg *msg, int seq_index, uint8_t index)
   temp = pnode->next;
   /*get the target<->Bridge IC IPMB seq number*/
   if (seq_index == 0) {
-  	// find source sequence for responding
-  	msg->seq_source = temp->buffer.seq_source;
+    // find source sequence for responding
+    msg->seq_source = temp->buffer.seq_source;
+    unregister_seq(index, temp->buffer.seq_target);
   } else {
   	msg->seq_target = temp->buffer.seq_target;
   }
@@ -419,16 +450,6 @@ void IPMB_RXTask(void *pvParameters)
             current_msg = (struct ipmi_msg)current_msg_rx.buffer;
             osMessageQueuePut(ipmb_rxqueue[ipmb_cfg.index], &current_msg, 0, osWaitForever);
           } else if (current_msg_rx.buffer.InF_source == HOST_KCS_IFs) {
-            if ( DEBUG_KCS ) {
-              printf("To KCS: netfn=0x%02x, cmd=0x%02x, cmlp=0x%02x, data[%d]:\n", 
-              current_msg_rx.buffer.netfn, current_msg_rx.buffer.cmd, current_msg_rx.buffer.completion_code, current_msg_rx.buffer.data_len);
-              for (i = 2; i < current_msg_rx.buffer.data_len; ++i) {
-                if (i && (i % 16 == 0))
-                  printf("\n");
-                printf("%02x ", ipmb_buffer_rx[i]);
-              }
-              printf("\n");
-            }
             kcs_buff = malloc(KCS_buff_size * sizeof(uint8_t));
             kcs_buff[0] = current_msg_rx.buffer.netfn << 2;
             kcs_buff[1] = current_msg_rx.buffer.cmd;
@@ -505,7 +526,7 @@ ipmb_error ipmb_send_request(ipmi_msg *req, uint8_t index)
   req_cfg.buffer.dest_addr = IPMB_config_table[index].target_addr;
   req_cfg.buffer.dest_LUN = 0;
   req_cfg.buffer.src_addr = IPMB_config_table[index].slave_addr << 1;
-  req_cfg.buffer.seq = (current_seq[index]++) & 0x3f;
+  req_cfg.buffer.seq = get_free_seq(index);
   req_cfg.buffer.seq_source = req->seq_source;
   req_cfg.buffer.src_LUN = 0;
   req_cfg.retries = 0;
@@ -677,32 +698,33 @@ void IPMB_SeqTimeout_handler(void *arug0, void *arug1, void *arug2)
   uint32_t current_time;
 
   while (1) {
-  	// k_msleep(IPMB_SEQ_TIMEOUT_ms);
-  	k_msleep(IPMB_SEQ_TIMEOUT_ms);
-  	for (index = 0; index < MAX_IPMB_IDX; index++) {
-  		if (!IPMB_config_table[index].EnStatus) {
-  			continue;
-  		}
+    // k_msleep(IPMB_SEQ_TIMEOUT_ms);
+    k_msleep(IPMB_SEQ_TIMEOUT_ms);
+    for (index = 0; index < MAX_IPMB_IDX; index++) {
+      if (!IPMB_config_table[index].EnStatus) {
+        continue;
+      }
 
-  		osMutexAcquire(mutex_id[index], osWaitForever);
-  		pnode = P_start[index];
-  		while (pnode->next != P_start[index]) {
-  			current_time = osKernelGetSysTimerCount();
-  			// printf("cur: %d, next_node: %d, time: %d, freq: %d, check: %d\n",current_time+tick_fix,(pnode->next)->buffer.timestamp, current_time + tick_fix - ((pnode->next)->buffer.timestamp), sys_tick_freq, IPMB_timeout_S * sys_tick_freq);
-  			// The queue stay more than 1000 ms need to be killed
-  			if (current_time + tick_fix - ((pnode->next)->buffer.timestamp) > IPMB_timeout_S * sys_tick_freq || (current_time + tick_fix - ((pnode->next)->buffer.timestamp)) & 0x80000000) {
-  				ipmi_msg_cfg *temp;
-  				temp = pnode->next;
-  				pnode->next = temp->next;
-  				free(temp);
-  				seq_current_count[index]--;
-  			}
+      osMutexAcquire(mutex_id[index], osWaitForever);
+      pnode = P_start[index];
+      while (pnode->next != P_start[index]) {
+        current_time = osKernelGetSysTimerCount();
+        // printf("cur: %d, next_node: %d, time: %d, freq: %d, check: %d\n",current_time+tick_fix,(pnode->next)->buffer.timestamp, current_time + tick_fix - ((pnode->next)->buffer.timestamp), sys_tick_freq, IPMB_timeout_S * sys_tick_freq);
+        // The queue stay more than 1000 ms need to be killed
+        if (current_time + tick_fix - ((pnode->next)->buffer.timestamp) > IPMB_timeout_S * sys_tick_freq || (current_time + tick_fix - ((pnode->next)->buffer.timestamp)) & 0x80000000) {
+          ipmi_msg_cfg *temp;
+          temp = pnode->next;
+          pnode->next = temp->next;
+          unregister_seq(index, temp->buffer.seq_target);
+          free(temp);
+          seq_current_count[index]--;
+          }
 
-  			pnode = pnode->next;
-  		}
+        pnode = pnode->next;
+      }
 
-  		osMutexRelease(mutex_id[index]);
-  	}
+      osMutexRelease(mutex_id[index]);
+    }
   }
 }
 
@@ -769,6 +791,7 @@ void ipmb_util_init(uint8_t index)
 
   memset(&IPMB_TxTask_attr, 0, sizeof(IPMB_TxTask_attr));
   memset(&IPMB_RxTask_attr, 0, sizeof(IPMB_RxTask_attr));
+  memset(&seq_table[index], 0, sizeof(bool) * SEQ_NUM);
 
   P_start[index] = (void*)malloc(sizeof(struct ipmi_msg_cfg));
   P_temp = P_start[index];
