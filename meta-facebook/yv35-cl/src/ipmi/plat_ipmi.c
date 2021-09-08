@@ -8,6 +8,8 @@
 #include "plat_ipmi.h"
 #include "hal_gpio.h"
 #include "ipmi_def.h"
+#include "guid.h"
+#include "plat_guid.h"
 
 bool add_sel_evt_record(addsel_msg_t *sel_msg) {
   ipmb_error status;
@@ -128,6 +130,43 @@ void pal_APP_GET_SELFTEST_RESULTS(ipmi_msg *msg) {
   msg->data[1] = test_result == 0x00 ? 0x00 : test_result;
   msg->data_len = 2;
   msg->completion_code = CC_SUCCESS;
+
+  return;
+}
+
+void pal_APP_GET_SYSTEM_GUID(ipmi_msg *msg) {
+  uint8_t status;
+  EEPROM_ENTRY guid_entry;
+
+  if (msg->data_len != 0) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  guid_entry.offset = 0;
+  guid_entry.data_len = 16;
+  guid_entry.config.dev_id = MB_SYS_GUID_ID;
+  status = GUID_read(&guid_entry);
+
+  switch (status) {
+    case GUID_READ_SUCCESS:
+      msg->data_len = guid_entry.data_len;
+      memcpy(&msg->data[0], &guid_entry.data, guid_entry.data_len);
+      msg->completion_code = CC_SUCCESS;
+      break;
+    case GUID_INVALID_ID:
+      msg->completion_code = CC_INVALID_PARAM;
+      break;
+    case GUID_OUT_OF_RANGE:
+      msg->completion_code = CC_PARAM_OUT_OF_RANGE;
+      break;
+    case GUID_FAIL_TO_ACCESS:
+      msg->completion_code = CC_UNSPECIFIED_ERROR;
+      break;
+    default:
+      msg->completion_code = CC_UNSPECIFIED_ERROR;
+      break;
+  }
 
   return;
 }
@@ -410,5 +449,40 @@ void pal_OEM_GET_SET_GPIO(ipmi_msg *msg) {
 
   msg->data_len = 2;  // Return GPIO number, status
   msg->completion_code = completion_code;
+  return;
+}
+
+void pal_OEM_SET_SYSTEM_GUID(ipmi_msg *msg) {
+  uint8_t status;
+  EEPROM_ENTRY guid_entry;
+
+  if (msg->data_len != 16) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  guid_entry.offset = 0;
+  guid_entry.data_len = msg->data_len;
+  guid_entry.config.dev_id = MB_SYS_GUID_ID;
+  memcpy(&guid_entry.data[0], &msg->data, guid_entry.data_len);
+  GUID_write(&guid_entry);
+
+  switch (status) {
+    case GUID_WRITE_SUCCESS:
+      msg->completion_code = CC_SUCCESS;
+      break;
+    case GUID_INVALID_ID:
+      msg->completion_code = CC_INVALID_PARAM;
+      break;
+    case GUID_OUT_OF_RANGE:
+      msg->completion_code = CC_PARAM_OUT_OF_RANGE;
+      break;
+    case GUID_FAIL_TO_ACCESS:
+      msg->completion_code = CC_UNSPECIFIED_ERROR;
+      break;
+    default:
+      msg->completion_code = CC_UNSPECIFIED_ERROR;
+      break;
+  }
   return;
 }
