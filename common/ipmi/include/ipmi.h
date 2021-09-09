@@ -1,6 +1,7 @@
 #ifndef IPMI_H
 #define IPMI_H
 
+#include <string.h>
 #include "ipmb.h"
 
 #define WW_IANA_ID 0x009c9c
@@ -16,6 +17,27 @@ typedef enum ipmi_error {
   ipmi_error_mutex_timeout,           /**< Fail to get mutex in time*/
 } ipmi_error;
 
+struct ipmi_request {
+  uint8_t netfn;
+  uint8_t cmd;
+  uint8_t data[0];
+};
+
+struct ipmi_response {
+  uint8_t netfn;
+  uint8_t cmd;
+  uint8_t cmplt_code;
+  uint8_t data[0];
+};
+
+static inline void pack_ipmi_resp (struct ipmi_response *resp, ipmi_msg *ipmi_resp) {
+  resp->netfn = (ipmi_resp->netfn + 1) << 2; // ipmi netfn response package
+  resp->cmd = ipmi_resp->cmd;
+  resp->cmplt_code = ipmi_resp->completion_code;
+  if (ipmi_resp->data_len != 0) {
+    memcpy(resp->data, ipmi_resp->data, ipmi_resp->data_len);
+  }
+}
 
 void ipmi_init(void);
 ipmi_error IPMI_handler (void *arug0, void *arug1, void *arug2);

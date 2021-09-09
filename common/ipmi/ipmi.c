@@ -241,7 +241,7 @@ ipmi_error IPMI_handler(void *arug0, void *arug1, void *arug2)
       }
 
       if (msg_cfg.buffer.InF_source == BMC_USB_IFs) {
-        ;
+        USB_write(&msg_cfg.buffer);
       } else if (msg_cfg.buffer.InF_source == HOST_KCS_IFs) {
         ;
       } else {
