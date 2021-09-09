@@ -20,6 +20,9 @@ void pal_set_sensor_poll_interval(int *interval_ms);
 uint8_t pal_load_sdr_table(void);
 bool pal_load_snr_config(void);
 
+// fru
+void pal_load_fru_config(void);
+
 // sensor read
 bool pal_tmp75_read(uint8_t sensor_num, int *reading);
 bool pal_adc_read(uint8_t sensor_num, int *reading);
