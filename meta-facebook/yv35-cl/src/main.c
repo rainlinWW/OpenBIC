@@ -17,14 +17,15 @@
 
 void main(void)
 {
-	printk("Hello yv35 cl\n");
+  printk("Hello yv35 cl\n");
 
   util_init_timer();
   util_init_I2C();
 
   gpio_init();
-	sensor_init();
-    FRU_init();
-	ipmi_init();
+  sensor_init();
+  FRU_init();
+  ipmi_init();
   kcs_init();
+  usb_dev_init();
 }
