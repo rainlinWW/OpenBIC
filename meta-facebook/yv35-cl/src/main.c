@@ -24,6 +24,7 @@ void main(void)
 
   gpio_init();
 	sensor_init();
+    FRU_init();
 	ipmi_init();
   kcs_init();
 }

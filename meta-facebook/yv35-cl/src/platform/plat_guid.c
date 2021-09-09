@@ -1,15 +1,10 @@
 #include <stdio.h>
 #include "guid.h"
 #include "plat_guid.h"
+#include "fru.h"
 
 #define MB_GUID_PORT 0x01
 #define MB_GUID_ADDR 0x54
-
-enum {
-  NV_ATMEL_24C02,
-  NV_ATMEL_24C64,
-  NV_ATMEL_24C128,
-};
 
 const EEPROM_CFG guid_config[] = {
   {
@@ -22,4 +17,3 @@ const EEPROM_CFG guid_config[] = {
     GUID_SIZE,
   },
 };
-

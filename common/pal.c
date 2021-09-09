@@ -195,6 +195,12 @@ __weak bool pal_load_snr_config(void)
 	return 0;
 }
 
+// fru
+__weak void pal_load_fru_config(void)
+{
+	return;
+}
+
 // sensor read
 __weak bool pal_tmp75_read(uint8_t sensor_num, int *reading)
 {
