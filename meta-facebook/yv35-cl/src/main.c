@@ -15,6 +15,10 @@
 #include "ipmi.h"
 #include "kcs.h"
 
+void device_init(){
+  adc_init();
+}
+
 void main(void)
 {
   printk("Hello yv35 cl\n");
@@ -28,4 +32,5 @@ void main(void)
   ipmi_init();
   kcs_init();
   usb_dev_init();
+  device_init();
 }
