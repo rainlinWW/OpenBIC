@@ -4,6 +4,7 @@
 #include "ipmi.h"
 #include "pal.h"
 
+
 /***********************************************************
 *
 * Create weak function here
@@ -140,6 +141,12 @@ __weak void pal_OEM_GET_FW_VERSION(ipmi_msg *msg)
 {
 	msg->completion_code = CC_UNSPECIFIED_ERROR;
 	return;
+}
+
+__weak void pal_OEM_PECIaccess(ipmi_msg *msg)
+{
+       msg->completion_code = CC_UNSPECIFIED_ERROR;
+       return;
 }
 
 __weak void pal_OEM_ACCURACY_SENSNR(ipmi_msg *msg)
