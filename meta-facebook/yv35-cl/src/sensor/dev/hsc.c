@@ -24,11 +24,12 @@ bool hsc_init() {
     msg.rx_len = 2;
     if (!i2c_master_read(&msg, retry)) {
       if ((msg.data[0] == 0x1C) && (msg.data[1] == 0x3F)) {
+        printk("HSC initail success\n"); 
         return true;
       }
     }
   }
-  printf("HSC initail fail\n");
+  printk("HSC initail fail\n");
   return false;
 }
 
@@ -42,6 +43,7 @@ bool pal_hsc_read(uint8_t sensor_num, int *reading) {
   msg.tx_len = 1;
   msg.data[0] = sensor_config[SnrNum_SnrCfg_map[sensor_num]].offset;
   msg.rx_len = 2;
+
   if (!i2c_master_read(&msg, retry)) {
     // Rsense 0.25m
     if (sensor_num == SENSOR_NUM_VOL_HSCIN) {
@@ -49,19 +51,20 @@ bool pal_hsc_read(uint8_t sensor_num, int *reading) {
       val = (((msg.data[1] << 8)  | msg.data[0]) *100 * 1000 / 19599) ;
     } else if (sensor_num == SENSOR_NUM_CUR_HSCOUT) {
       // m = +800 * Rsense(mohm), b = +20475, R = -1
-      val = ((((msg.data[1] << 8)  | msg.data[0]) *10 - 20475) * 1000 / 200) ;
+      val = ((((((msg.data[1] << 8)  | msg.data[0]) *10 - 20475) * 1000 / 200) * 99 / 100) - 400) ;
     } else if (sensor_num == SENSOR_NUM_TEMP_HSC) {
       // m = +42, b = +31880, R = -1
       val = ((((msg.data[1] << 8)  | msg.data[0]) *10 - 31880) * 1000 / 42) ;
     } else if (sensor_num == SENSOR_NUM_PWR_HSCIN) {
       // m = +6123 * Rsense(mohm), b = 0, R = -2
-      val = ((((msg.data[1] << 8)  | msg.data[0]) *100) * 1000 / 1530.75) ;
+      val = (((((msg.data[1] << 8)  | msg.data[0]) *100) * 1000 / 1530 * 99 / 100) - 5000) ;      
     }
   } else {
     sensor_config[SnrNum_SnrCfg_map[sensor_num]].cache_status = SNR_FAIL_TO_ACCESS;
     printf("Snr num %x read fail\n", sensor_num);
     return false;
   }
+
   *reading = (acur_cal_MBR(sensor_num,val) / 1000) & 0xffff;
   sensor_config[SnrNum_SnrCfg_map[sensor_num]].cache = *reading;
   sensor_config[SnrNum_SnrCfg_map[sensor_num]].cache_status = SNR_READ_ACUR_SUCCESS;

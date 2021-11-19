@@ -1605,20 +1605,20 @@ SDR_Full_sensor plat_sensor_table[] = {
     0x00,   // base unit
     0x00,   // modifier unit
     IPMI_SDR_LINEAR_LINEAR,   // linearization
-    0x40,   // [7:0] M bits
-    0x00,   // [9:8] M bits, tolerance
+    0x54,   // [7:0] M bits
+    0x80,   // [9:8] M bits, tolerance
     0x00,   // [7:0] B bits
     0x00,   // [9:8] B bits, tolerance
     0x00,   // [7:4] accuracy , [3:2] accuracy exp, [1:0] sensor direction
-    0xD0,   // Rexp, Bexp
+    0xC0,   // Rexp, Bexp
     0x00,   // analog characteristic
     0x00,   // nominal reading
     0x00,   // normal maximum
     0x00,   // normal minimum
     0x00,   // sensor maximum reading
     0x00,   // sensor minimum reading
-    0xE0,   // UNRT
-    0xCF,   // UCT
+    0x00,   // UNRT
+    0xDC,   // UCT
     0xCB,   // UNCT
     0x9E,   // LNRT
     0xA9,   // LCT
@@ -1657,7 +1657,7 @@ SDR_Full_sensor plat_sensor_table[] = {
    0x00,   // base unit
    0x00,   // modifier unit
    IPMI_SDR_LINEAR_LINEAR,   // linearization
-   0xA7,   // [7:0] M bits
+   0x92,   // [7:0] M bits
    0x00,   // [9:8] M bits, tolerance
    0x00,   // [7:0] B bits
    0x00,   // [9:8] B bits, tolerance
@@ -1670,7 +1670,7 @@ SDR_Full_sensor plat_sensor_table[] = {
    0x00,   // sensor maximum reading
    0x00,   // sensor minimum reading
    0x00,   // UNRT
-   0xF0,   // UCT
+   0xDC,   // UCT
    0x00,   // UNCT
    0x00,   // LNRT
    0x00,   // LCT
@@ -1969,12 +1969,12 @@ SDR_Full_sensor plat_sensor_table[] = {
    0x00,   // base unit
    0x00,   // modifier unit
    IPMI_SDR_LINEAR_LINEAR,   // linearization
-   0x01,   // [7:0] M bits
+   0xB5,   // [7:0] M bits
    0x00,   // [9:8] M bits, tolerance
    0x00,   // [7:0] B bits
    0x00,   // [9:8] B bits, tolerance
    0x00,   // [7:4] accuracy , [3:2] accuracy exp, [1:0] sensor direction
-   0x00,   // Rexp, Bexp
+   0xE0,   // Rexp, Bexp
    0x00,   // analog characteristic
    0x00,   // nominal reading
    0x00,   // normal maximum
@@ -1982,7 +1982,7 @@ SDR_Full_sensor plat_sensor_table[] = {
    0x00,   // sensor maximum reading
    0x00,   // sensor minimum reading
    0x00,   // UNRT
-   0xB2,   // UCT
+   0xDC,   // UCT
    0x00,   // UNCT
    0x00,   // LNRT
    0x00,   // LCT
