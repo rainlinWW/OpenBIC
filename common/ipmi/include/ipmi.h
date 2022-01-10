@@ -30,6 +30,15 @@ struct ipmi_response {
   uint8_t data[0];
 };
 
+typedef struct addsel_msg_t {
+  uint8_t snr_type;
+  uint8_t snr_number;
+  uint8_t evt_type;
+  uint8_t evt_data1;
+  uint8_t evt_data2;
+  uint8_t evt_data3;
+} addsel_msg_t;
+
 static inline void pack_ipmi_resp (struct ipmi_response *resp, ipmi_msg *ipmi_resp) {
   resp->netfn = (ipmi_resp->netfn + 1) << 2; // ipmi netfn response package
   resp->cmd = ipmi_resp->cmd;

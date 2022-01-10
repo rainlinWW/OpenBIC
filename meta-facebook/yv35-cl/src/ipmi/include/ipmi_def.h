@@ -18,12 +18,14 @@
 #define BIC_FW_platform_1 0x6c // char: l
 #define BIC_FW_platform_2 0x00 // char: '\0'
 
-// firmware update interface
-#define BIOS_UPDATE 0x00
-#define CPLD_UPDATE 0x01
-#define BIC_UPDATE  0x02
-#define UPDATE_EN   0x80
 #define GET_TEST_RESULT 0
 
+// firmware update interface
+enum {
+  BIOS_UPDATE,
+  CPLD_UPDATE,
+  BIC_UPDATE,
+  UPDATE_EN = 0x80,
+};
 
 #endif
