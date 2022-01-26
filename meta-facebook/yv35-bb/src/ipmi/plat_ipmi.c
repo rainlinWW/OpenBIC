@@ -15,6 +15,7 @@
 #include "plat_fru.h"
 #include "sensor_def.h"
 #include "util_spi.h"
+#include "dev/fan.h"
 
 
 bool pal_is_not_return_cmd(uint8_t netfn, uint8_t cmd) {
@@ -703,5 +704,195 @@ void pal_OEM_1S_12V_CYCLE_SLOT(ipmi_msg *msg) {
   gpio_set(isolator_num, GPIO_HIGH);
 
   msg->completion_code = CC_SUCCESS;
+  return;
+}
+
+void pal_OEM_GET_SET_FAN_CTRL_STATE(ipmi_msg *msg) {
+  if (msg->data_len != 1) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  printf("pal_OEM_GET_SET_FAN_CTRL_STATE %02x\n", msg->cmd);
+  printf("ctrl_cmd: %d\n", msg->data[0]);
+
+  uint8_t ctrl_cmd = msg->data[0];
+  uint8_t completion_code = CC_SUCCESS;
+  uint8_t ctrl_state = 0;
+  int ret = 0;
+
+  msg->data_len = 0;
+
+  if (ctrl_cmd == FAN_SET_MANUAL_MODE) {
+    pal_set_fan_ctrl_state(FAN_MANUAL_MODE);
+
+  } else if (ctrl_cmd == FAN_SET_AUTO_MODE) {
+    pal_set_fan_ctrl_state(FAN_AUTO_MODE);
+
+  } else if (ctrl_cmd == FAN_GET_MODE) {
+    ret = pal_get_fan_ctrl_state(&ctrl_state);
+    if (ret < 0) {
+      completion_code = CC_UNSPECIFIED_ERROR;
+
+    } else {
+      msg->data_len = 1;
+      msg->data[0] = ctrl_state;
+    }
+
+  } else {
+    completion_code = CC_PARAM_OUT_OF_RANGE;
+  }
+
+  msg->completion_code = completion_code;
+  return;
+}
+
+void pal_OEM_SET_FAN_DUTY(ipmi_msg *msg) {
+  if (msg->data_len != 2) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  printf("pal_OEM_SET_FAN_DUTY %02x\n", msg->cmd);
+  printf("fan_id: %d duty: %d\n", msg->data[0], msg->data[1]);
+  printf("%d %d", MAX_FAN_DUTY, MAX_FAN_NUM);
+
+  int i = 0, ret = 0;
+  uint8_t ctrl_state = 0;
+  uint8_t completion_code = CC_SUCCESS;
+  uint8_t fan_id = msg->data[0];
+  uint8_t duty = msg->data[1];
+
+  msg->data_len = 0;
+
+  if ((duty > MAX_FAN_DUTY) || ((fan_id >= MAX_FAN_NUM) && (fan_id != GET_ALL_FAN_DUTY))) {
+    msg->completion_code = CC_PARAM_OUT_OF_RANGE;
+    return;
+  }
+
+  ret = pal_get_fan_ctrl_state(&ctrl_state);
+  if ((ret < 0) || (ctrl_state == FAN_AUTO_MODE)) {
+    msg->completion_code = CC_UNSPECIFIED_ERROR;
+    return;
+  }
+
+  if (fan_id == GET_ALL_FAN_DUTY) {
+    for (i = 0; i < MAX_FAN_NUM; i++) {
+      ret = pal_set_fan_duty_manual(i, duty);
+      if (ret < 0) {
+        completion_code = CC_UNSPECIFIED_ERROR;
+        break;
+      }
+    }
+  } else {
+    ret = pal_set_fan_duty_manual(fan_id, duty);
+    if (ret < 0) {
+        completion_code = CC_UNSPECIFIED_ERROR;
+      }
+  }
+
+  msg->completion_code = completion_code;
+  return;
+}
+
+void pal_OEM_1S_GET_FAN_RPM(ipmi_msg *msg) {
+  if (msg->data_len != 1) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  printf("pal_OEM_1S_GET_FAN_RPM %02x\n", msg->cmd);
+  printf("fan_id: %d\n", msg->data[0]);
+
+  uint8_t fan_id = msg->data[0];
+  uint8_t data = 0;
+  int ret = 0;
+
+  data = pal_get_fan_rpm(fan_id, &data);
+  if (ret < 0) {
+    msg->data_len = 0;
+    msg->completion_code = CC_UNSPECIFIED_ERROR;
+
+  } else {
+    data &= 0xFFFF;
+
+    msg->data[0] = data &0xFF;
+    msg->data[1] = (data >> 8) & 0xFF;
+    msg->data_len = 2;
+    msg->completion_code = CC_SUCCESS;
+  }
+
+  return;
+}
+
+void pal_OEM_1S_CTRL_FAN(ipmi_msg *msg) {
+  if (msg->data_len != 1) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  printf("pal_OEM_1S_CTRL_FAN %02x\n", msg->cmd);
+  printf("fan_id: %d duty: %d\n", msg->data[0], msg->data[1]);
+
+  uint8_t fan_id = msg->data[0];
+  uint8_t duty = msg->data[1];
+  uint8_t ctrl_state = 0, slot_index = 0;
+  int ret = 0;
+
+  msg->data_len = 0;
+
+  ret = pal_get_fan_ctrl_state(&ctrl_state);
+  if ((ret < 0) || (ctrl_state == FAN_MANUAL_MODE)) {
+    msg->completion_code = CC_UNSPECIFIED_ERROR;
+    return;
+  }
+
+  if (duty > 100) {
+    duty = 100;
+  }
+
+  if (msg->InF_source == SLOT1_BIC_IFs) {
+    slot_index = 0x01;
+  } else if (msg->InF_source == SLOT3_BIC_IFs) {
+    slot_index = 0x03;
+  } else {
+    msg->completion_code = CC_PARAM_OUT_OF_RANGE;
+    return;
+  }
+
+  ret = pal_set_fan_duty_auto(fan_id, duty, slot_index);
+  if (ret < 0) {
+    msg->completion_code = CC_UNSPECIFIED_ERROR;
+  } else {
+    msg->completion_code = CC_SUCCESS;
+  }
+
+  return;
+}
+
+void pal_OEM_1S_GET_FAN_DUTY(ipmi_msg *msg) {
+  if (msg->data_len != 1) {
+    msg->completion_code = CC_INVALID_LENGTH;
+    return;
+  }
+
+  uint8_t fan_id = msg->data[0];
+  uint8_t duty = 0;
+  int ret = 0;
+
+  printf("pal_OEM_1S_GET_FAN_DUTY %02x\n", msg->cmd);
+  printf("fan_id %d\n", fan_id);
+
+  ret = pal_get_fan_duty(fan_id, &duty);
+  if (ret < 0) {
+    msg->data_len = 0;
+    msg->completion_code = CC_UNSPECIFIED_ERROR;
+
+  } else {
+    msg->data[0] = duty;
+    msg->data_len = 1;
+    msg->completion_code = CC_SUCCESS;
+  }
+
   return;
 }

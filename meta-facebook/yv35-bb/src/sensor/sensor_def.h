@@ -1,6 +1,7 @@
 #ifndef SENSOR_DEF_H
 #define SENSOR_DEF_H
 
+
 enum {
   adc_port0 = 0,
   adc_port1,

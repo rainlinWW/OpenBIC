@@ -111,6 +111,12 @@ void IPMI_OEM_handler(ipmi_msg *msg)
 	case CMD_OEM_SET_SYSTEM_GUID:
 		pal_OEM_SET_SYSTEM_GUID(msg);
 		break;
+	case CMD_OEM_GET_SET_FAN_CTRL_STATE:
+		pal_OEM_GET_SET_FAN_CTRL_STATE(msg);
+		break;
+	case CMD_OEM_SET_FAN_DUTY:
+		pal_OEM_SET_FAN_DUTY(msg);
+		break;
 	default:
 		printf("invalid OEM msg netfn: %x, cmd: %x\n", msg->netfn, msg->cmd);
 		msg->data_len = 0;
@@ -180,6 +186,15 @@ void IPMI_OEM_1S_handler(ipmi_msg *msg)
 		break;
 	case CMD_OEM_1S_12V_CYCLE_SLOT:
 		pal_OEM_1S_12V_CYCLE_SLOT(msg);
+		break;
+	case CMD_OEM_1S_CTRL_FAN:
+		pal_OEM_1S_CTRL_FAN(msg);
+		break;
+	case CMD_OEM_1S_GET_FAN_DUTY:
+		pal_OEM_1S_GET_FAN_DUTY(msg);
+		break;
+	case CMD_OEM_1S_GET_FAN_RPM:
+		pal_OEM_1S_GET_FAN_RPM(msg);
 		break;
 	default:
 		printf("invalid OEM msg netfn: %x, cmd: %x\n", msg->netfn, msg->cmd);

@@ -67,6 +67,8 @@ void pal_STORAGE_GET_SDR(ipmi_msg *msg);
 // IPMI OEM
 void pal_OEM_SENSOR_READ(ipmi_msg *msg);
 void pal_OEM_SET_SYSTEM_GUID(ipmi_msg *msg);
+void pal_OEM_GET_SET_FAN_CTRL_STATE(ipmi_msg *msg);
+void pal_OEM_SET_FAN_DUTY(ipmi_msg *msg);
 
 // IPMI OEM 1S
 void pal_OEM_1S_MSG_OUT(ipmi_msg *msg);
@@ -88,6 +90,9 @@ void pal_OEM_1S_JTAG_DATA_SHIFT(ipmi_msg *msg);
 void pal_OEM_1S_GET_BIC_STATUS(ipmi_msg *msg);
 void pal_OEM_1S_RESET_BIC(ipmi_msg *msg);
 void pal_OEM_1S_12V_CYCLE_SLOT(ipmi_msg *msg);
+void pal_OEM_1S_CTRL_FAN(ipmi_msg *msg);
+void pal_OEM_1S_GET_FAN_DUTY(ipmi_msg *msg);
+void pal_OEM_1S_GET_FAN_RPM(ipmi_msg *msg);
 
 enum {
 	CC_SUCCESS = 0x00,
@@ -186,6 +191,8 @@ enum {
 enum {
 	CMD_OEM_SENSOR_READ = 0xE2,
 	CMD_OEM_SET_SYSTEM_GUID = 0xEF,
+	CMD_OEM_SET_FAN_DUTY = 0xF1,
+	CMD_OEM_GET_SET_FAN_CTRL_STATE = 0xF2,
 };
 
 // OEM 1S Command Codes
@@ -211,6 +218,10 @@ enum {
 	CMD_OEM_1S_GET_BIC_STATUS = 0x31,
 	CMD_OEM_1S_RESET_BIC = 0x32,
 	CMD_OEM_1S_GET_SET_GPIO = 0x41,
+	CMD_OEM_1S_CTRL_FAN = 0x50,
+	CMD_OEM_1S_GET_FAN_DUTY = 0x51,
+	CMD_OEM_1S_GET_FAN_RPM = 0x52,
+
 	// Debug command
 	CMD_OEM_1S_I2C_DEV_SCAN = 0x60,
 
